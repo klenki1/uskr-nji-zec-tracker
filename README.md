@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="hr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Praćenje Uskršnjeg Zeca</title>
+  <script src="https://unpkg.com/cesium/Build/Cesium/Cesium.js"></script>
+  <link href="https://unpkg.com/cesium/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+  <style>
+    html, body, #cesiumContainer {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+    }
+    #overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      background: rgba(255, 158, 196, 0.9);
+      color: white;
+      text-align: center;
+      padding: 10px;
+    }
+    .language-switcher button {
+      margin: 0 5px;
+    }
+    #infoPanel {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 10px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div id="overlay">
+    <h1 id="title">Pratite Uskršnjeg Zeca!</h1>
+    <div class="language-switcher">
+      <button onclick="changeLanguage('hr')">Hrvatski</button>
+      <button onclick="changeLanguage('en')">English</button>
+    </div>
+  </div>
+  <div id="cesiumContainer"></div>
+  <div id="infoPanel">
+    <p id="giftsGiven">🎁 Podijeljeni pokloni: 123</p>
+    <p id="giftsRemaining">🎁 Poklona do vas: 7</p>
+    <button onclick="showCityInfo()">🗺️ Više o gradu</button>
+    <button onclick="playSong()">🎵 Pusti pjesmu</button>
+  </div>
+
+  <script>
+    const viewer = new Cesium.Viewer('cesiumContainer', {
+      terrainProvider: new Cesium.EllipsoidTerrainProvider(),
+      shouldAnimate: true
+    });
+
+    const bunny = viewer.entities.add({
+      name: "Uskrsnji Zec",
+      position: Cesium.Cartesian3.fromDegrees(15.9819, 45.8150),
+      billboard: {
+        image: 'https://i.imgur.com/j8bVf3K.png',
+        width: 32,
+        height: 32
+      }
+    });
+
+    viewer.trackedEntity = bunny;
+
+    let cities = [];
+
+    async function loadCountries() {
+      const response = await fetch("https://restcountries.com/v3.1/all");
+      const countries = await response.json();
+
+      cities = countries.map(c => {
+        const latlng = c.latlng || [0, 0];
+        return {
+          name: c.capital ? c.capital[0] : c.name.common,
+          country: c.name.common,
+          lat: latlng[0],
+          lon: latlng[1],
+          wiki: `https://en.wikipedia.org/wiki/${(c.capital ? c.capital[0] : c.name.common).replace(/ /g, "_")}`
+        };
+      });
+
+      cities.sort((a, b) => b.lat - a.lat); // Optional: sort by latitude
+      flyToNextCity();
+    }
+
+    let currentCityIndex = 0;
+
+    function flyToNextCity() {
+      if (!cities.length) return;
+      const city = cities[currentCityIndex];
+      const position = Cesium.Cartesian3.fromDegrees(city.lon, city.lat);
+      bunny.position = position;
+      viewer.camera.flyTo({ destination: position, duration: 3 });
+
+      currentCityIndex = (currentCityIndex + 1) % cities.length;
+    }
+
+    setInterval(flyToNextCity, 8000);
+
+    function showCityInfo() {
+      const city = cities[(currentCityIndex - 1 + cities.length) % cities.length];
+      window.open(city.wiki, '_blank');
+    }
+
+    function playSong() {
+      const song = new Audio('https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3');
+      song.play();
+    }
+
+    function changeLanguage(lang) {
+      document.getElementById('title').textContent = lang === 'hr' ? 'Pratite Uskršnjeg Zeca!' : 'Follow the Easter Bunny!';
+      document.getElementById('giftsGiven').textContent = lang === 'hr' ? '🎁 Podijeljeni pokloni: 123' : '🎁 Gifts given: 123';
+      document.getElementById('giftsRemaining').textContent = lang === 'hr' ? '🎁 Poklona do vas: 7' : '🎁 Gifts until you: 7';
+    }
+
+    loadCountries();
+  </script>
+</body>
+</html>
